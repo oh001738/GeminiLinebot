@@ -22,7 +22,7 @@ app.post('/webhook', async (req, res) => {
             // 檢查訊息是否以特定關鍵字開頭
             if (message.startsWith('魚酥')) {
                 // 使用者以魚酥開頭，取得訊息內容（不包含魚酥）
-                const userInput = message.substring(2).trim();
+                const userInput = message.replace(/^魚酥/, '').trim();
 
                 // 使用 Google Generative AI 處理文字訊息
                 try {
