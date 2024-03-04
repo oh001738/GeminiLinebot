@@ -19,20 +19,26 @@ app.post('/webhook', async (req, res) => {
             const message = event.message.text;
             const replyToken = event.replyToken;
 
-            // 輸出使用者的輸入訊息至控制台
-            console.log('User Input:', message);
+            // 檢查訊息是否以特定關鍵字開頭
+            if (message.startsWith('魚酥')) {
+                // 使用者以魚酥開頭，取得訊息內容（不包含魚酥）
+                const userInput = message.substring(2).trim();
 
-            // 使用 Google Generative AI 處理文字訊息
-            try {
-                const processedText = await processText(message);
+                // 使用 Google Generative AI 處理文字訊息
+                try {
+                    const processedText = await processText(userInput);
 
-                // 輸出回覆給使用者的訊息至控制台
-                console.log('Response:', processedText);
+                    // 輸出回覆給使用者的訊息至控制台
+                    console.log('Response:', processedText);
 
-                await replyMessage(replyToken, processedText);
-            } catch (error) {
-                console.error('Error replying message:', error);
-                await replyMessage(replyToken, 'Sorry, there was an error processing the message.');
+                    await replyMessage(replyToken, processedText);
+                } catch (error) {
+                    console.error('Error replying message:', error);
+                    await replyMessage(replyToken, 'Sorry, there was an error processing the message.');
+                }
+            } else {
+                // 使用者未以魚酥開頭，不處理此訊息，直接回覆給使用者
+                //await replyMessage(replyToken, 'Please start your message with "魚酥" followed by your input.');
             }
         }
     }
