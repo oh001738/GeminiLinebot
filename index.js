@@ -60,6 +60,9 @@ async function processText(userInput) {
         topK: 1,
         topP: 1,
         maxOutputTokens: 2048,
+        stopSequences: [
+            "bbu",
+        ],
     };
 
     const safetySettings = [
