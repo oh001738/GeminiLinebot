@@ -49,11 +49,19 @@ async function processText(userInput) {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
+    const prompts = [
+        "我是魚酥，一個由 Google AI 創建的大型語言模型。",
+        "我可以生成文字、翻譯語言、編寫不同類型的創意內容，並以信息豐富的方式回答您的問題。",
+        "我會盡力使用正體中文回答您的問題，並遵循您的指示。",
+        "請告訴我您今天想讓我做什麼。",
+      ];
+    
     const generationConfig = {
         temperature: 0.9,
         topK: 1,
         topP: 1,
         maxOutputTokens: 2048,
+        prompt: prompts,
     };
 
     const safetySettings = [
