@@ -19,9 +19,16 @@ app.post('/webhook', async (req, res) => {
             const message = event.message.text;
             const replyToken = event.replyToken;
 
+            // 輸出使用者的輸入訊息至控制台
+            console.log('User Input:', message);
+
             // 使用 Google Generative AI 處理文字訊息
             try {
                 const processedText = await processText(message);
+
+                // 輸出回覆給使用者的訊息至控制台
+                console.log('Response:', processedText);
+
                 await replyMessage(replyToken, processedText);
             } catch (error) {
                 console.error('Error replying message:', error);
@@ -76,6 +83,8 @@ async function processText(userInput) {
 
     const result = await chat.sendMessage(userInput);
     const response = result.response;
+
+    // 返回回覆給使用者的訊息
     return response.text();
 }
 
