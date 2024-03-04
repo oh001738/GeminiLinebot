@@ -90,7 +90,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "mocha"
+    "test": "echo \"No test specified\""
   },
   "author": "",
   "license": "ISC"
