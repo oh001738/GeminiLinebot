@@ -23,13 +23,14 @@ app.post('/webhook', async (req, res) => {
             if (message.startsWith('魚酥')) {
                 // 使用者以魚酥開頭，取得訊息內容（不包含魚酥）
                 const userInput = message.replace(/^魚酥/, '').trim();
-
+                // 輸出使用者輸入的訊息至控制台
+                console.log(`UserInput: [${replyToken}] ${userInput}`);
                 // 使用 Google Generative AI 處理文字訊息
                 try {
                     const processedText = await processText(userInput);
 
                     // 輸出回覆給使用者的訊息至控制台
-                    console.log('Response:', processedText);
+                    console.log(`Response: [${replyToken}] ${processedText}`);
 
                     await replyMessage(replyToken, processedText);
                 } catch (error) {
