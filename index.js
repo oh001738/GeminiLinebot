@@ -38,7 +38,7 @@ app.post('/webhook', async (req, res) => {
                 }
             } else {
                 // 使用者未以魚酥開頭，不處理此訊息，直接回覆給使用者
-                //await replyMessage(replyToken, 'Please start your message with "魚酥" followed by your input.');
+                await replyMessage(replyToken, 'Please start your message with "魚酥" followed by your input.');
             }
         }
     }
