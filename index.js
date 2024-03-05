@@ -34,11 +34,11 @@ app.post('/webhook', async (req, res) => {
                     await replyMessage(replyToken, processedText);
                 } catch (error) {
                     console.error('Error replying message:', error);
-                    await replyMessage(replyToken, 'Sorry, there was an error processing the message.');
+                    await replyMessage(replyToken, '對不起，處理消息時出錯。');
                 }
             } else {
                 // 使用者未以魚酥開頭，不處理此訊息，直接回覆給使用者
-                await replyMessage(replyToken, 'Please start your message with "魚酥" followed by your input.');
+                await replyMessage(replyToken, '請以「魚酥」開頭，然後輸入您的問題。');
             }
         }
     }
@@ -56,7 +56,7 @@ async function processText(userInput) {
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
     
     const generationConfig = {
-        temperature: 0.9,
+        temperature: 0.5,
         topK: 1,
         topP: 1,
         maxOutputTokens: 2048,
