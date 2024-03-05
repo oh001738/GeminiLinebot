@@ -7,6 +7,9 @@ const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@googl
 const app = express();
 const port = process.env.PORT || 3000;
 
+// 定義魚酥關鍵字常數
+const KEYWORD = process.env.KEYWORD;
+
 app.use(express.json());
 
 // LINE Bot Webhook
@@ -20,9 +23,9 @@ app.post('/webhook', async (req, res) => {
             const replyToken = event.replyToken;
 
             // 檢查訊息是否以特定關鍵字開頭
-            if (message.startsWith('魚酥')) {
-                // 使用者以魚酥開頭，取得訊息內容（不包含魚酥）
-                const userInput = message.replace(/^魚酥/, '').trim();
+            if (message.startsWith(KEYWORD)) {
+                // 使用者以KEYWORD開頭，取得訊息內容（不包含KEYWORD）
+                const userInput = message.replace(new RegExp(`^${KEYWORD}`), '').trim();
                 // 輸出使用者輸入的訊息至控制台
                 console.log(`UserInput: [${replyToken}] ${userInput}`);
                 // 使用 Google Generative AI 處理文字訊息
@@ -38,8 +41,8 @@ app.post('/webhook', async (req, res) => {
                     await replyMessage(replyToken, '對不起，處理消息時出錯。');
                 }
             } else {
-                // 使用者未以魚酥開頭，不處理此訊息，直接回覆給使用者
-                // await replyMessage(replyToken, '請以「魚酥」開頭，然後輸入您的問題。');
+                // 使用者未以KEYWORD開頭，不處理此訊息，直接回覆給使用者
+                // await replyMessage(replyToken, `請以「${KEYWORD}」開頭，然後輸入您的問題。`);
             }
         }
     }
