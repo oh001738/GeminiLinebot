@@ -6,6 +6,8 @@ const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@googl
 
 const app = express();
 const port = process.env.PORT || 3000;
+let processImageMsg = (process.env.processImageMsg === 'true');
+let callSign = process.env.callSign;
 
 app.use(express.json());
 
@@ -23,11 +25,13 @@ app.post('/webhook', async (req, res) => {
                 const text = message.text;
                 const replyToken = event.replyToken;
 
-                if (text.startsWith('魚酥')) {
+                if (text.startsWith(callSign)) {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
-                    console.log(`UserInput: [${replyToken}] ${text}`);
+					const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+					const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
+                    console.log(`UserInput: [${replyToken}] ${userInput}`);
                     try {
-                        const processedText = await processText(text);
+                        const processedText = await processText(userInput);
                         console.log(`Response: [${replyToken}] ${processedText}`);
                         await replyMessage(replyToken, processedText);
                     } catch (error) {
@@ -35,7 +39,7 @@ app.post('/webhook', async (req, res) => {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。');
                     }
                 }
-            } else if (message.type === 'image') {
+            } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
                 const replyToken = event.replyToken;
                 const imageMessageId = message.id;
