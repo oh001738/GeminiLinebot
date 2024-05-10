@@ -50,7 +50,7 @@ app.post('/webhook', async (req, res) => {
 
 // 使用 Google Generative AI 處理文字訊息
 async function processText(userInput) {
-    const MODEL_NAME = "gemini-1.0-pro";
+    const MODEL_NAME = "gemini-1.5-pro-latest";
     const API_KEY = process.env.GGAI_API_KEY;
     
     const genAI = new GoogleGenerativeAI(API_KEY);
