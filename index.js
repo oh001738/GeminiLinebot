@@ -124,7 +124,7 @@ async function processImage(imageBinary) {
 
     const genAI = new GoogleGenerativeAI(process.env.GGAI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-    const prompt = "請描述這張圖片，如果他是個問題就告訴我答案，如果包含食物就幫我計算食材的熱量，如果是股票線圖就提供建議是否買賣及買賣的價格。";
+    const prompt = "請描述這張圖片。";
     const mimeType = "image/png";
 
     // 將圖片轉換成 GoogleGenerativeAI.Part 物件
