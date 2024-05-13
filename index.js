@@ -23,40 +23,40 @@ app.post('/webhook', async (req, res) => {
             if (message.type === 'text') {
                 // 處理文字訊息
                 const text = message.text;
-                const replyToken = event.replyToken;
+                const userId = event.source.userId;
 
                 if (text.startsWith(callSign)) {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
-					const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-					const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
-                    console.log(`UserInput: [${replyToken}] ${userInput}`);
+                    const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
+                    console.log(`UserInput: [${userId}] ${userInput}`);
                     try {
                         const processedText = await processText(userInput);
-                        console.log(`Response: [${replyToken}] ${processedText}`);
-                        await replyMessage(replyToken, processedText);
+                        console.log(`Response: [${userId}] ${processedText}`);
+                        await pushMessage(userId, processedText);
                     } catch (error) {
                         console.error('Error replying message:', error);
-                        await replyMessage(replyToken, '對不起，處理消息時出錯。');
+                        await pushMessage(userId, '對不起，處理消息時出錯。');
                     }
                 }
             } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
-                const replyToken = event.replyToken;
+                const userId = event.source.userId;
                 const imageMessageId = message.id;
 
                 try {
                     // 取得圖片二進制資料
                     const imageBinary = await getImageBinary(imageMessageId);
-
+                    console.log(`UserInput: [${userId}] 使用者上傳一張圖片`);
                     // 使用 Google Generative AI 處理圖片訊息
                     const processedText = await processImage(imageBinary);
 
                     // 回覆訊息給使用者
-                    await replyMessage(replyToken, processedText);
-					console.log(`Response: [${replyToken}] ${processedText}`);
+                    await pushMessage(userId, processedText);
+                    console.log(`Response: [${userId}] ${processedText}`);
                 } catch (error) {
                     console.error('Error processing image:', error);
-                    await replyMessage(replyToken, '對不起，處理圖片時出錯。');
+                    await pushMessage(userId, '對不起，處理圖片時出錯。');
                 }
             }
         }
@@ -87,19 +87,19 @@ async function processText(userInput) {
     const safetySettings = [
         {
             "category": "HARM_CATEGORY_HARASSMENT",
-            "threshold": "BLOCK_ONLY_HIGH"
+            "threshold": "BLOCK_NONE"
         },
         {
             "category": "HARM_CATEGORY_HATE_SPEECH",
-            "threshold": "BLOCK_ONLY_HIGH"
+            "threshold": "BLOCK_NONE"
         },
         {
             "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "threshold": "BLOCK_ONLY_HIGH"
+            "threshold": "BLOCK_NONE"
         },
         {
             "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-            "threshold": "BLOCK_ONLY_HIGH"
+            "threshold": "BLOCK_NONE"
         },
     ];
 
@@ -116,7 +116,7 @@ async function processText(userInput) {
     return response.text();
 }
 
-// 處理圖片訊息的函式
+// 使用 Google Generative AI 處理圖片訊息
 async function processImage(imageBinary) {
     // 在這裡添加您對圖片訊息的處理邏輯
     // 例如：使用 Google Generative AI 進行圖像識別、圖像生成等
@@ -124,7 +124,7 @@ async function processImage(imageBinary) {
 
     const genAI = new GoogleGenerativeAI(process.env.GGAI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-    const prompt = "請描述這張圖片。";
+    const prompt = "請描述圖片內容";
     const mimeType = "image/png";
 
     // 將圖片轉換成 GoogleGenerativeAI.Part 物件
@@ -141,19 +141,19 @@ async function processImage(imageBinary) {
     const safetySettings = [
         {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
         },
         {
             category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
         },
         {
             category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
         },
         {
             category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
         },
     ];
 
@@ -163,17 +163,16 @@ async function processImage(imageBinary) {
     return text;
 }
 
-
-// 回覆訊息的函式
-async function replyMessage(replyToken, text) {
+// 向使用者發送主動訊息的函式
+async function pushMessage(userId, text) {
     const accessToken = process.env.CHANNEL_ACCESS_TOKEN;
-    const url = 'https://api.line.me/v2/bot/message/reply';
+    const url = 'https://api.line.me/v2/bot/message/push';
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
     };
     const data = {
-        replyToken: replyToken,
+        to: userId,
         messages: [{
             type: 'text',
             text: text
