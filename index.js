@@ -23,40 +23,40 @@ app.post('/webhook', async (req, res) => {
             if (message.type === 'text') {
                 // 處理文字訊息
                 const text = message.text;
-                const userId = event.source.userId;
+                const replyToken = event.replyToken;
 
                 if (text.startsWith(callSign)) {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
-                    const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                    const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
-                    console.log(`UserInput: [${userId}] ${userInput}`);
+					const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+					const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
+                    console.log(`UserInput: [${replyToken}] ${userInput}`);
                     try {
                         const processedText = await processText(userInput);
-                        console.log(`Response: [${userId}] ${processedText}`);
-                        await pushMessage(userId, processedText);
+                        console.log(`Response: [${replyToken}] ${processedText}`);
+                        await replyMessage(replyToken, processedText);
                     } catch (error) {
                         console.error('Error replying message:', error);
-                        await pushMessage(userId, '對不起，處理消息時出錯。');
+                        await replyMessage(replyToken, '對不起，處理消息時出錯。');
                     }
                 }
             } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
-                const userId = event.source.userId;
+                const replyToken = event.replyToken;
                 const imageMessageId = message.id;
 
                 try {
                     // 取得圖片二進制資料
                     const imageBinary = await getImageBinary(imageMessageId);
-                    console.log(`UserInput: [${userId}] 使用者上傳一張圖片`);
+					console.log(`UserInput: [${replyToken}] 使用者上傳一張圖片`);
                     // 使用 Google Generative AI 處理圖片訊息
                     const processedText = await processImage(imageBinary);
 
                     // 回覆訊息給使用者
-                    await pushMessage(userId, processedText);
-                    console.log(`Response: [${userId}] ${processedText}`);
+                    await replyMessage(replyToken, processedText);
+					console.log(`Response: [${replyToken}] ${processedText}`);
                 } catch (error) {
                     console.error('Error processing image:', error);
-                    await pushMessage(userId, '對不起，處理圖片時出錯。');
+                    await replyMessage(replyToken, '對不起，處理圖片時出錯。');
                 }
             }
         }
@@ -116,7 +116,7 @@ async function processText(userInput) {
     return response.text();
 }
 
-// 使用 Google Generative AI 處理圖片訊息
+// 處理圖片訊息的函式
 async function processImage(imageBinary) {
     // 在這裡添加您對圖片訊息的處理邏輯
     // 例如：使用 Google Generative AI 進行圖像識別、圖像生成等
@@ -163,16 +163,17 @@ async function processImage(imageBinary) {
     return text;
 }
 
-// 向使用者發送主動訊息的函式
-async function pushMessage(userId, text) {
+
+// 回覆訊息的函式
+async function replyMessage(replyToken, text) {
     const accessToken = process.env.CHANNEL_ACCESS_TOKEN;
-    const url = 'https://api.line.me/v2/bot/message/push';
+    const url = 'https://api.line.me/v2/bot/message/reply';
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
     };
     const data = {
-        to: userId,
+        replyToken: replyToken,
         messages: [{
             type: 'text',
             text: text
