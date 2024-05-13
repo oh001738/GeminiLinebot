@@ -55,7 +55,8 @@ app.post('/webhook', async (req, res) => {
                 const imageMessageId = message.id;
 				if (!userRequest) {
 					// 如果尚未收到使用者的文字請求，則回覆提醒訊息
-					await replyMessage(replyToken, '請先使用 "我想問" 指令來觸發圖片訊息的處理。');
+					// await replyMessage(replyToken, '請先使用 "我想問" 指令來觸發圖片訊息的處理。');
+					console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
 					return;
 				}	
                 try {
