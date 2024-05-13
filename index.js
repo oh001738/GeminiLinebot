@@ -2,22 +2,28 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const axios = require('axios');
-const { Client } = require('@line/bot-sdk');
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const {
+    Client
+} = require('@line/bot-sdk');
+const {
+    GoogleGenerativeAI,
+    HarmCategory,
+    HarmBlockThreshold
+} = require("@google/generative-ai");
 
 const app = express();
 const port = process.env.PORT || 3000;
 let processImageMsg = (process.env.processImageMsg === 'true');
 let callSign = process.env.callSign;
-let userRequest = ''; // 儲存使用者的文字請求
-let imageBinary = null; // 儲存使用者上傳的圖片二進制資料
 app.use(express.json());
 
-// LINE Bot Webhook
+// 在應用程式的全域範圍內定義一個用於存儲使用者請求的 Map 或 Object
+const userRequests = new Map(); // 或者 const userRequests = {};
+const userImages = new Map(); // 或者 const userImages = {};
+
+// LINE Bot Webhook 處理收到的事件的程式碼
 app.post('/webhook', async (req, res) => {
     const events = req.body.events;
-
-
     // 處理收到的事件
     for (const event of events) {
         if (event.type === 'message') {
@@ -32,58 +38,66 @@ app.post('/webhook', async (req, res) => {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
                     const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
-                    console.log(`UserInput: [${replyToken}] ${userInput}`);
+
+                    // 判斷使用者輸入是否為空
+                    if (userInput === '') {
+                        console.log(`UserInput: [${replyToken}] No input after callSign.`);
+                        return; // 不進行後續處理
+                    }
+
+                    console.log(`Start --- UserInput: [${replyToken}] ${userInput}`);
                     try {
                         const processedText = await processText(userInput);
-                        console.log(`Response: [${replyToken}] ${processedText}`);
+                        console.log(`End --- Response: [${replyToken}] ${processedText}`);
                         await replyMessage(replyToken, processedText);
                     } catch (error) {
                         console.error('Error replying message:', error);
-                        await replyMessage(replyToken, '對不起，處理消息時出錯。');
+                        await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                     }
                 } else if (text.startsWith("我想問")) {
                     // 文字訊息以 "我想問" 開頭，處理文字訊息...
-                    userRequest = text; // 儲存使用者的文字請求
-                    console.log(`UserRequest: [${replyToken}] ${userRequest}`)
-                    
+                    const userId = event.source.userId; // 取得使用者的 ID
+                    const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
+                    // 判斷使用者輸入是否為空
+                    if (userRequestText === '') {
+                        console.log(`UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+                        return; // 不進行後續處理
+                    }
+                    userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
+                    console.log(`Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+
                     // 發送提示訊息要求使用者上傳圖片
                     await replyMessage(replyToken, '請您上傳一張圖片給我');
                 }
-            } else if (message.type === 'image' && processImageMsg) {			
+            } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
                 const replyToken = event.replyToken;
                 const imageMessageId = message.id;
-				if (!userRequest) {
-					// 如果尚未收到使用者的文字請求，則回覆提醒訊息
-					// await replyMessage(replyToken, '請先使用 "我想問" 指令來觸發圖片訊息的處理。');
-					console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
-					return;
-				}	
+                const userId = event.source.userId; // 取得使用者的 ID
+                const userRequest = userRequests.get(userId); // 從 Map 中獲取使用者的請求
+                const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
+
+                if (!userRequest) {
+                    // 如果尚未收到使用者的文字請求，則回覆提醒訊息
+                    console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+                    return;
+                }
+
                 try {
-					
-                    // 取得圖片二進制資料
-                    imageBinary = await getImageBinary(imageMessageId);
-                    console.log(`UserInput: [${replyToken}] 使用者上傳一張圖片`);
-					//console.log(`Prompt: ${imageBinary}`);
-                    console.log(`UserRequest: ${userRequest}`);
+                    console.log(`UserInput: [${userId}][${replyToken}] 使用者上傳一張圖片`);
                     if (userRequest && imageBinary) {
                         // 如果已經收到了使用者的請求和圖片二進制資料，則處理圖片和請求
-                        const processedText = await processImageAndRequest(userRequest, imageBinary, replyToken);
-						await replyMessage(replyToken, processedText);
-                        console.log(`Response: [${replyToken}] ${processedText}`);
-						
+                        const processedText = await processImageAndRequest(userRequest, userId, imageBinary, replyToken);
+                        await replyMessage(replyToken, processedText);
+                        console.log(`End --- Response: [${userId}][${replyToken}] ${processedText}`);
                     } else {
                         console.error('Error processing image and user request: No user request or image binary.');
                         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
                     }
                 } catch (error) {
                     console.error('Error processing image:', error);
-                    await replyMessage(replyToken, '對不起，處理圖片時出錯。');
-                } finally {
-					// 清空 userRequest 變量
-					userRequest = '';
-					let imageBinary = null;
-				}
+                    await replyMessage(replyToken, '對不起，處理圖片時出錯。' + error.toString());
+                }
             }
         }
     }
@@ -92,14 +106,18 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
 });
 
+
+
 // 使用 Google Generative AI 處理文字訊息
 async function processText(userInput) {
     const MODEL_NAME = "gemini-1.0-pro";
     const API_KEY = process.env.GGAI_API_KEY;
-    
+
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-    
+    const model = genAI.getGenerativeModel({
+        model: MODEL_NAME
+    });
+
     const generationConfig = {
         temperature: 0.5,
         topK: 1,
@@ -110,8 +128,7 @@ async function processText(userInput) {
         ],
     };
 
-    const safetySettings = [
-        {
+    const safetySettings = [{
             "category": "HARM_CATEGORY_HARASSMENT",
             "threshold": "BLOCK_NONE"
         },
@@ -143,29 +160,31 @@ async function processText(userInput) {
 }
 
 // 處理圖片訊息的函式
-async function processImageAndRequest(userRequest, imageBinary, replyToken) {
+async function processImageAndRequest(userRequest, userId, imageBinary, replyToken) {
     try {
         // 在這裡添加您對圖片訊息的處理邏輯
         // 例如：使用 Google Generative AI 進行圖像識別、圖像生成等
         // 返回處理後的文字訊息
         const genAI = new GoogleGenerativeAI(process.env.GGAI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+        const model = genAI.getGenerativeModel({
+            model: "gemini-pro-vision"
+        });
         const prompt = userRequest;
         const mimeType = "image/png";
 
         // 將圖片轉換成 GoogleGenerativeAI.Part 物件
-        const imageParts = [
-            {
-                inlineData: {
-                    data: Buffer.from(imageBinary, "binary").toString("base64"),
-                    mimeType
-                }
+        const imageParts = [{
+            inlineData: {
+                data: Buffer.from(imageBinary, "binary").toString("base64"),
+                mimeType
             }
-        ];
+        }];
+
+        // 將使用者的圖片數據存儲在全域的 Map 中
+        userImages.set(userId, imageParts);
 
         // 設定安全性設定
-        const safetySettings = [
-            {
+        const safetySettings = [{
                 category: HarmCategory.HARM_CATEGORY_HARASSMENT,
                 threshold: HarmBlockThreshold.BLOCK_NONE,
             },
@@ -190,6 +209,16 @@ async function processImageAndRequest(userRequest, imageBinary, replyToken) {
     } catch (error) {
         console.error('Error processing image and user request:', error);
         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
+    } finally {
+        console.log("Before clearing:");
+        console.log("userRequests:", userRequests);
+        console.log("userImages:", userImages);
+        // 不論是否出現異常，都會執行清空操作
+        userRequests.delete(userId);
+        userImages.delete(userId);
+        console.log("After clearing:");
+        console.log("userRequests:", userRequests);
+        console.log("userImages:", userImages);
     }
 }
 
@@ -209,7 +238,9 @@ async function replyMessage(replyToken, text) {
         }]
     };
 
-    await axios.post(url, data, { headers: headers });
+    await axios.post(url, data, {
+        headers: headers
+    });
 }
 
 // 取得圖片二進制資料
