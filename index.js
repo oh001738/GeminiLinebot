@@ -15,8 +15,9 @@ let callSign = process.env.callSign;
 app.use(express.json());
 
 // 在應用程式的全域範圍內定義一個用於存儲使用者請求的 Map 或 Object
-const userRequests = new Map(); // 或者 const userRequests = {};
-const userImages = new Map(); // 或者 const userImages = {};
+const userRequests = new Map();
+const userImages = new Map();
+const userTimeouts = new Map();
 
 // LINE Bot Webhook 處理收到的事件的程式碼
 app.post('/webhook', async (req, res) => {
@@ -53,20 +54,33 @@ app.post('/webhook', async (req, res) => {
                         console.error('Error replying message:', error);
                     }
                 } else if (text.startsWith("我想問")) {
-                    // 文字訊息以 "我想問" 開頭，處理文字訊息...
-                    const userId = event.source.userId; // 取得使用者的 ID
-                    const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
-                    // 判斷使用者輸入是否為空
-                    if (userRequestText === '') {
-						console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
-                        return; // 不進行後續處理
-                    }
-                    userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
-                    console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+					const userId = event.source.userId; // 取得使用者的 ID
+					const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
 
-                    // 發送提示訊息要求使用者上傳圖片
-                    await replyMessage(replyToken, '請您上傳一張圖片給我');
-                }
+					// 判斷使用者輸入是否為空
+					if (userRequestText === '') {
+						console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+						return; // 不進行後續處理
+					}
+
+					userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
+					console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+
+					// 啟動超時計時器
+					const timeoutDuration = 5 * 60 * 1000; // 5 分鐘，以毫秒為單位
+					const timeoutId = setTimeout(async () => {
+						// 如果超時，清除使用者請求，並向使用者發送提示訊息
+						userRequests.delete(userId);
+						await replyMessage(replyToken, '對不起，您的請求已超時，請重新提出您的問題。');
+						console.log(`Event.Timeout --- UserRequest: [${userId}] 時間已超過 ${timeoutDuration / 1000} 秒`);
+					}, timeoutDuration);
+
+					// 將 timeoutId 存儲在 Map 中，以便後續取消計時器使用
+					userTimeouts.set(userId, timeoutId);
+
+					// 發送提示訊息要求使用者在5分鐘內上傳圖片
+					await replyMessage(replyToken, '請您在5分鐘內上傳一張圖片給我');
+				}
             } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
                 const replyToken = event.replyToken;
@@ -96,6 +110,39 @@ app.post('/webhook', async (req, res) => {
                     await replyMessage(replyToken, '對不起，處理圖片時出錯。' + error.toString());
 					console.error('Event.Error processing image:', error);
                 }
+            }
+        } else if (event.type === 'follow') {
+            // 處理 Follow event
+            const replyToken = event.replyToken;
+            const userId = event.source.userId;
+
+            try {
+                // 在這裡處理 Follow event，例如發送歡迎訊息等
+                await replyMessage(replyToken, `感謝您追蹤我！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                console.log(`New user followed the bot: ${userId}`);
+            } catch (error) {
+                console.error('Error handling follow event:', error);
+            }
+		} else if (event.type === 'join') {
+            // 處理 Join event
+            const replyToken = event.replyToken;
+            const groupId = event.source.groupId;
+            try {
+                await replyMessage(replyToken, `感謝您把我加入群組！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                console.log(`Bot joined the group: ${groupId}`);
+            } catch (error) {
+                console.error('Error handling join event:', error);
+            }
+		} else if (event.type === 'memberJoined') {
+            // 處理 Member join event
+            const replyToken = event.replyToken;
+            const groupId = event.source.groupId;
+            const userId = event.joined.members[0].userId; // 第一個加入的成員的 userId
+            try {
+                await replyMessage(replyToken, `歡迎新成員加入！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                console.log(`New member joined the group: ${userId}`);
+            } catch (error) {
+                console.error('Error handling member join event:', error);
             }
         }
     }
