@@ -41,8 +41,8 @@ app.post('/webhook', async (req, res) => {
 					const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-                        return; // 不進行後續處理
 						console.log(`UserInput: [${replyToken}] No input after callSign.`);
+                        return; // 不進行後續處理
                     }
 
                     console.log(`Start --- UserInput: [${replyToken}] ${userInput}`);
@@ -61,8 +61,8 @@ app.post('/webhook', async (req, res) => {
                     const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
                     // 判斷使用者輸入是否為空
                     if (userRequestText === '') {
-                        return; // 不進行後續處理
 						console.log(`UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+                        return; // 不進行後續處理
                     }
                     userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
                     console.log(`Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
@@ -79,8 +79,8 @@ app.post('/webhook', async (req, res) => {
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-                    return;
 					console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+                    return;
                 }
 
                 try {
@@ -107,57 +107,60 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
 });
 
-
-
 // 使用 Google Generative AI 處理文字訊息
 async function processText(userInput) {
-    const MODEL_NAME = "gemini-1.0-pro";
-    const API_KEY = process.env.GGAI_API_KEY;
+    try {
+        const MODEL_NAME = "gemini-1.0-pro";
+        const API_KEY = process.env.GGAI_API_KEY;
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({
-        model: MODEL_NAME
-    });
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const model = genAI.getGenerativeModel({
+            model: MODEL_NAME
+        });
 
-    const generationConfig = {
-        temperature: 0.5,
-        topK: 1,
-        topP: 1,
-        maxOutputTokens: 2048,
-        stopSequences: [
-            "bbu",
-        ],
-    };
+        const generationConfig = {
+            temperature: 0.5,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+            stopSequences: [
+                "bbu",
+            ],
+        };
 
-    const safetySettings = [{
-            "category": "HARM_CATEGORY_HARASSMENT",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_HATE_SPEECH",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            "threshold": "BLOCK_NONE"
-        },
-        {
-            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-            "threshold": "BLOCK_NONE"
-        },
-    ];
+        const safetySettings = [{
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            },
+        ];
 
-    const chat = model.startChat({
-        generationConfig,
-        safetySettings,
-        history: [],
-    });
+        const chat = model.startChat({
+            generationConfig,
+            safetySettings,
+            history: [],
+        });
 
-    const result = await chat.sendMessage(userInput);
-    const response = result.response;
+        const result = await chat.sendMessage(userInput);
+        const response = result.response;
 
-    // 返回回覆給使用者的訊息
-    return response.text();
+        // 返回回覆給使用者的訊息
+        return response.text();
+    } catch (error) {
+        console.error('Error processing text:', error);
+        throw error; // 可以選擇是重新拋出錯誤或返回一個預設的錯誤訊息
+    }
 }
 
 // 處理圖片訊息的函式
@@ -205,11 +208,13 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
 
         // 使用 Google Generative AI 處理圖片
         const result = await model.generateContent([prompt, ...imageParts], safetySettings);
+        console.log(result);
         const text = result.response.text();
+        await replyMessage(replyToken, text); // 將回覆訊息的函式呼叫移到 try 塊中
         return text;
     } catch (error) {
         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
-		console.error('Error processing image and user request:', error);
+        console.error('Error processing image and user request:', error);
     } finally {
         console.log("Before clearing:");
         console.log("userRequests:", userRequests);
@@ -225,23 +230,28 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
 
 // 回覆訊息的函式
 async function replyMessage(replyToken, text) {
-    const accessToken = process.env.CHANNEL_ACCESS_TOKEN;
-    const url = 'https://api.line.me/v2/bot/message/reply';
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-    };
-    const data = {
-        replyToken: replyToken,
-        messages: [{
-            type: 'text',
-            text: text
-        }]
-    };
+    try {
+        const accessToken = process.env.CHANNEL_ACCESS_TOKEN;
+        const url = 'https://api.line.me/v2/bot/message/reply';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        };
+        const data = {
+            replyToken: replyToken,
+            messages: [{
+                type: 'text',
+                text: text
+            }]
+        };
 
-    await axios.post(url, data, {
-        headers: headers
-    });
+        await axios.post(url, data, {
+            headers: headers
+        });
+    } catch (error) {
+        console.error('Error sending reply message:', error);
+        // 可以回覆一個錯誤訊息給用戶，或者進行其他處理
+    }
 }
 
 // Loading Animation
@@ -263,19 +273,24 @@ async function startLoadingAnimation(userId, loadingSeconds) {
 
 // 取得圖片二進制資料
 async function getImageBinary(messageId) {
-    const LINE_HEADER = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}`
-    };
+    try {
+        const LINE_HEADER = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}`
+        };
 
-    const originalImage = await axios({
-        method: "get",
-        headers: LINE_HEADER,
-        url: `https://api-data.line.me/v2/bot/message/${messageId}/content`,
-        responseType: "arraybuffer"
-    });
+        const originalImage = await axios({
+            method: "get",
+            headers: LINE_HEADER,
+            url: `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+            responseType: "arraybuffer"
+        });
 
-    return originalImage.data;
+        return originalImage.data;
+    } catch (error) {
+        console.error('Error fetching image binary:', error);
+        throw new Error('無法取得圖片二進制資料'); // 返回一個預設的錯誤訊息
+    }
 }
 
 // 啟動伺服器
