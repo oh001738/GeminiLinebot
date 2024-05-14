@@ -3,9 +3,6 @@ const express = require('express');
 const http = require('http');
 const axios = require('axios');
 const {
-    Client
-} = require('@line/bot-sdk');
-const {
     GoogleGenerativeAI,
     HarmCategory,
     HarmBlockThreshold
@@ -41,16 +38,16 @@ app.post('/webhook', async (req, res) => {
 					const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-						console.log(`UserInput: [${replyToken}] No input after callSign.`);
+						console.log(`Event.UserInput: [${replyToken}] No input after callSign.`);
                         return; // 不進行後續處理
                     }
 
-                    console.log(`Start --- UserInput: [${replyToken}] ${userInput}`);
+                    console.log(`Event.Start --- UserInput: [${replyToken}] ${userInput}`);
                     try {
 						await startLoadingAnimation(userId, 10); //Loading Animation
                         const processedText = await processText(userInput);
                         await replyMessage(replyToken, processedText);
-						console.log(`End --- Response: [${replyToken}] ${processedText}`);
+						console.log(`Event.End --- Response: [${replyToken}] ${processedText}`);
                     } catch (error) {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
@@ -61,11 +58,11 @@ app.post('/webhook', async (req, res) => {
                     const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
                     // 判斷使用者輸入是否為空
                     if (userRequestText === '') {
-						console.log(`UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+						console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
                         return; // 不進行後續處理
                     }
                     userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
-                    console.log(`Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+                    console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
 
                     // 發送提示訊息要求使用者上傳圖片
                     await replyMessage(replyToken, '請您上傳一張圖片給我');
@@ -79,25 +76,25 @@ app.post('/webhook', async (req, res) => {
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-					console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+					console.log(`Event.UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                     return;
                 }
 
                 try {
 					await startLoadingAnimation(userId, 10); //Loading Animation
-                    console.log(`UserInput: [${userId}][${replyToken}] 使用者上傳一張圖片`);
+                    console.log(`Event.UserInput: [${userId}][${replyToken}] 使用者上傳一張圖片`);
                     if (userRequest && imageBinary) {
                         // 如果已經收到了使用者的請求和圖片二進制資料，則處理圖片和請求
                         const processedText = await processImageAndRequest(userRequest, userId, imageBinary, replyToken);
-                        await replyMessage(replyToken, processedText);
-                        console.log(`End --- Response: [${userId}][${replyToken}] ${processedText}`);
+                        //await replyMessage(replyToken, processedText);
+                        console.log(`Event.End --- Response: [${userId}][${replyToken}] ${processedText}`);
                     } else {
                         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
-						console.error('Error processing image and user request: No user request or image binary.');
+						console.error('Event.Error processing image and user request: No user request or image binary.');
                     }
                 } catch (error) {
                     await replyMessage(replyToken, '對不起，處理圖片時出錯。' + error.toString());
-					console.error('Error processing image:', error);
+					console.error('Event.Error processing image:', error);
                 }
             }
         }
@@ -158,7 +155,7 @@ async function processText(userInput) {
         // 返回回覆給使用者的訊息
         return response.text();
     } catch (error) {
-        console.error('Error processing text:', error);
+        console.error('processText.Error processing text:', error);
         throw error; // 可以選擇是重新拋出錯誤或返回一個預設的錯誤訊息
     }
 }
@@ -208,13 +205,12 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
 
         // 使用 Google Generative AI 處理圖片
         const result = await model.generateContent([prompt, ...imageParts], safetySettings);
-        console.log(result);
         const text = result.response.text();
         await replyMessage(replyToken, text); // 將回覆訊息的函式呼叫移到 try 塊中
         return text;
     } catch (error) {
-        await replyMessage(replyToken, '對不起，處理圖片時出錯。');
         console.error('Error processing image and user request:', error);
+		await replyMessage(replyToken, '對不起，處理圖片時出錯。');
     } finally {
         console.log("Before clearing:");
         console.log("userRequests:", userRequests);
@@ -249,8 +245,8 @@ async function replyMessage(replyToken, text) {
             headers: headers
         });
     } catch (error) {
-        console.error('Error sending reply message:', error);
         // 可以回覆一個錯誤訊息給用戶，或者進行其他處理
+		console.error('Error processing image and user request:', error);
     }
 }
 
@@ -288,7 +284,7 @@ async function getImageBinary(messageId) {
 
         return originalImage.data;
     } catch (error) {
-        console.error('Error fetching image binary:', error);
+        console.error('getImageBinary.Error fetching image binary:', error);
         throw new Error('無法取得圖片二進制資料'); // 返回一個預設的錯誤訊息
     }
 }
