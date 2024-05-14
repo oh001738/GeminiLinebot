@@ -36,51 +36,50 @@ app.post('/webhook', async (req, res) => {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
                     const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
-					const userId = event.source.userId; // 取得使用者的 ID
+                    const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-						console.log(`Event.UserInput: [${replyToken}] No input after callSign.`);
+                        console.log(`Event.UserInput: [${replyToken}] No input after callSign.`);
                         return; // 不進行後續處理
                     }
 
                     console.log(`Event.Start --- UserInput: [${replyToken}] ${userInput}`);
                     try {
-						await startLoadingAnimation(userId, 10); //Loading Animation
+                        await startLoadingAnimation(userId, 10); //Loading Animation
                         const processedText = await processText(userInput);
                         await replyMessage(replyToken, processedText);
-						console.log(`Event.End --- Response: [${replyToken}] ${processedText}`);
+                        console.log(`Event.End --- Response: [${replyToken}] ${processedText}`);
                     } catch (error) {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
                     }
                 } else if (text.startsWith("我想問")) {
-					const userId = event.source.userId; // 取得使用者的 ID
-					const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
+                    const userId = event.source.userId; // 取得使用者的 ID
+                    const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
 
-					// 判斷使用者輸入是否為空
-					if (userRequestText === '') {
-						console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
-						return; // 不進行後續處理
-					}
+                    // 判斷使用者輸入是否為空
+                    if (userRequestText === '') {
+                        console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+                        return; // 不進行後續處理
+                    }
 
-					userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
-					console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+                    userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
+                    console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
 
-					// 啟動超時計時器
-					const timeoutDuration = 5 * 60 * 1000; // 5 分鐘，以毫秒為單位
-					const timeoutId = setTimeout(async () => {
-						// 如果超時，清除使用者請求，並向使用者發送提示訊息
-						userRequests.delete(userId);
-						await replyMessage(replyToken, '對不起，您的請求已超時，請重新提出您的問題。');
-						console.log(`Event.Timeout --- UserRequest: [${userId}] 時間已超過 ${timeoutDuration / 1000} 秒`);
-					}, timeoutDuration);
+                    // 啟動超時計時器
+                    const timeoutDuration = 30 * 1000; // 指定時間，以毫秒為單位
+                    const timeoutId = setTimeout(async () => {
+                        // 如果超時，清除使用者請求
+                        userRequests.delete(userId);
+                        console.log(`Event.Timeout --- UserRequest: [${replyToken}] 時間已超過 ${timeoutDuration / 1000} 秒`);
+                    }, timeoutDuration);
 
-					// 將 timeoutId 存儲在 Map 中，以便後續取消計時器使用
-					userTimeouts.set(userId, timeoutId);
+                    // 將 timeoutId 存儲在 Map 中，以便後續取消計時器使用
+                    userTimeouts.set(userId, timeoutId);
 
-					// 發送提示訊息要求使用者在5分鐘內上傳圖片
-					await replyMessage(replyToken, '請您在5分鐘內上傳一張圖片給我');
-				}
+                    // 發送提示訊息要求使用者在指定時間內上傳圖片
+                    await replyMessage(replyToken, `請您在${timeoutDuration / 1000}秒內上傳一張圖片給我`);
+                }
             } else if (message.type === 'image' && processImageMsg) {
                 // 處理圖片訊息
                 const replyToken = event.replyToken;
@@ -90,12 +89,12 @@ app.post('/webhook', async (req, res) => {
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-					console.log(`Event.UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+                    console.log(`Event.UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                     return;
                 }
 
                 try {
-					await startLoadingAnimation(userId, 10); //Loading Animation
+                    await startLoadingAnimation(userId, 10); //Loading Animation
                     console.log(`Event.UserInput: [${userId}][${replyToken}] 使用者上傳一張圖片`);
                     if (userRequest && imageBinary) {
                         // 如果已經收到了使用者的請求和圖片二進制資料，則處理圖片和請求
@@ -104,11 +103,11 @@ app.post('/webhook', async (req, res) => {
                         console.log(`Event.End --- Response: [${userId}][${replyToken}] ${processedText}`);
                     } else {
                         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
-						console.error('Event.Error processing image and user request: No user request or image binary.');
+                        console.error('Event.Error processing image and user request: No user request or image binary.');
                     }
                 } catch (error) {
                     await replyMessage(replyToken, '對不起，處理圖片時出錯。' + error.toString());
-					console.error('Event.Error processing image:', error);
+                    console.error('Event.Error processing image:', error);
                 }
             }
         } else if (event.type === 'follow') {
@@ -123,7 +122,7 @@ app.post('/webhook', async (req, res) => {
             } catch (error) {
                 console.error('Error handling follow event:', error);
             }
-		} else if (event.type === 'join') {
+        } else if (event.type === 'join') {
             // 處理 Join event
             const replyToken = event.replyToken;
             const groupId = event.source.groupId;
@@ -133,7 +132,7 @@ app.post('/webhook', async (req, res) => {
             } catch (error) {
                 console.error('Error handling join event:', error);
             }
-		} else if (event.type === 'memberJoined') {
+        } else if (event.type === 'memberJoined') {
             // 處理 Member join event
             const replyToken = event.replyToken;
             const groupId = event.source.groupId;
@@ -257,17 +256,21 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         return text;
     } catch (error) {
         console.error('Error processing image and user request:', error);
-		await replyMessage(replyToken, '對不起，處理圖片時出錯。');
+        await replyMessage(replyToken, '對不起，處理圖片時出錯。');
     } finally {
-        console.log("Before clearing:");
-        console.log("userRequests:", userRequests);
-        console.log("userImages:", userImages);
+        // 清除超時計時器
+        const timeoutId = userTimeouts.get(userId);
+        console.log("Timeout ID:", timeoutId);
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            userTimeouts.delete(userId);
+            console.log(`Cleared timeout for user: ${userId}`);
+        }
         // 不論是否出現異常，都會執行清空操作
         userRequests.delete(userId);
         userImages.delete(userId);
-        console.log("After clearing:");
-        console.log("userRequests:", userRequests);
-        console.log("userImages:", userImages);
+
+
     }
 }
 
@@ -293,7 +296,7 @@ async function replyMessage(replyToken, text) {
         });
     } catch (error) {
         // 可以回覆一個錯誤訊息給用戶，或者進行其他處理
-		console.error('Error processing image and user request:', error);
+        console.error('Error processing image and user request:', error);
     }
 }
 
