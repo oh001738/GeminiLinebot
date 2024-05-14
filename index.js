@@ -38,21 +38,22 @@ app.post('/webhook', async (req, res) => {
                     // 文字訊息以「魚酥」開頭，處理文字訊息...
                     const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
-
+					const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-                        console.log(`UserInput: [${replyToken}] No input after callSign.`);
                         return; // 不進行後續處理
+						console.log(`UserInput: [${replyToken}] No input after callSign.`);
                     }
 
                     console.log(`Start --- UserInput: [${replyToken}] ${userInput}`);
                     try {
+						await startLoadingAnimation(userId, 10); //Loading Animation
                         const processedText = await processText(userInput);
-                        console.log(`End --- Response: [${replyToken}] ${processedText}`);
                         await replyMessage(replyToken, processedText);
+						console.log(`End --- Response: [${replyToken}] ${processedText}`);
                     } catch (error) {
-                        console.error('Error replying message:', error);
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
+                        console.error('Error replying message:', error);
                     }
                 } else if (text.startsWith("我想問")) {
                     // 文字訊息以 "我想問" 開頭，處理文字訊息...
@@ -60,8 +61,8 @@ app.post('/webhook', async (req, res) => {
                     const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
                     // 判斷使用者輸入是否為空
                     if (userRequestText === '') {
-                        console.log(`UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
                         return; // 不進行後續處理
+						console.log(`UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
                     }
                     userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
                     console.log(`Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
@@ -76,14 +77,14 @@ app.post('/webhook', async (req, res) => {
                 const userId = event.source.userId; // 取得使用者的 ID
                 const userRequest = userRequests.get(userId); // 從 Map 中獲取使用者的請求
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
-
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-                    console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                     return;
+					console.log(`UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                 }
 
                 try {
+					await startLoadingAnimation(userId, 10); //Loading Animation
                     console.log(`UserInput: [${userId}][${replyToken}] 使用者上傳一張圖片`);
                     if (userRequest && imageBinary) {
                         // 如果已經收到了使用者的請求和圖片二進制資料，則處理圖片和請求
@@ -91,12 +92,12 @@ app.post('/webhook', async (req, res) => {
                         await replyMessage(replyToken, processedText);
                         console.log(`End --- Response: [${userId}][${replyToken}] ${processedText}`);
                     } else {
-                        console.error('Error processing image and user request: No user request or image binary.');
                         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
+						console.error('Error processing image and user request: No user request or image binary.');
                     }
                 } catch (error) {
-                    console.error('Error processing image:', error);
                     await replyMessage(replyToken, '對不起，處理圖片時出錯。' + error.toString());
+					console.error('Error processing image:', error);
                 }
             }
         }
@@ -207,8 +208,8 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         const text = result.response.text();
         return text;
     } catch (error) {
-        console.error('Error processing image and user request:', error);
         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
+		console.error('Error processing image and user request:', error);
     } finally {
         console.log("Before clearing:");
         console.log("userRequests:", userRequests);
@@ -240,6 +241,23 @@ async function replyMessage(replyToken, text) {
 
     await axios.post(url, data, {
         headers: headers
+    });
+}
+
+// Loading Animation
+async function startLoadingAnimation(userId, loadingSeconds) {
+    const loadingData = {
+        "chatId": userId,
+        "loadingSeconds": loadingSeconds
+    };
+
+    const loadingHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}`
+    };
+
+    await axios.post('https://api.line.me/v2/bot/chat/loading/start', loadingData, {
+        headers: loadingHeaders
     });
 }
 
