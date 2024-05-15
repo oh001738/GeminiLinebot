@@ -33,7 +33,7 @@ app.post('/webhook', async (req, res) => {
                 const replyToken = event.replyToken;
 
                 if (text.startsWith(callSign)) {
-                    // 文字訊息以「魚酥」開頭，處理文字訊息...
+                    // 文字訊息以「callSign環境變數」開頭，處理文字訊息...
                     const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
                     const userId = event.source.userId; // 取得使用者的 ID
@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
                     console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
 
                     // 啟動超時計時器
-                    const timeoutDuration = 30 * 1000; // 指定時間，以毫秒為單位
+                    const timeoutDuration = 60 * 1000; // 指定時間，以毫秒為單位
                     const timeoutId = setTimeout(async () => {
                         // 如果超時，清除使用者請求
                         userRequests.delete(userId);
@@ -117,7 +117,7 @@ app.post('/webhook', async (req, res) => {
 
             try {
                 // 在這裡處理 Follow event，例如發送歡迎訊息等
-                await replyMessage(replyToken, `感謝您追蹤我！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                await replyMessage(replyToken, `感謝您追蹤我！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：${callSign}請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
                 console.log(`New user followed the bot: ${userId}`);
             } catch (error) {
                 console.error('Error handling follow event:', error);
@@ -127,7 +127,7 @@ app.post('/webhook', async (req, res) => {
             const replyToken = event.replyToken;
             const groupId = event.source.groupId;
             try {
-                await replyMessage(replyToken, `感謝您把我加入群組！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                await replyMessage(replyToken, `感謝您把我加入群組！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：${callSign}請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
                 console.log(`Bot joined the group: ${groupId}`);
             } catch (error) {
                 console.error('Error handling join event:', error);
@@ -138,7 +138,7 @@ app.post('/webhook', async (req, res) => {
             const groupId = event.source.groupId;
             const userId = event.joined.members[0].userId; // 第一個加入的成員的 userId
             try {
-                await replyMessage(replyToken, `歡迎新成員加入！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：魚酥請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
+                await replyMessage(replyToken, `歡迎新成員加入！邀請您體驗AI服務\n文字AI:\n輸入：${callSign}+文字 （如：${callSign}請問台灣有幾個鄉鎮）\n\n圖像識別AI:\n輸入：我想問+描述（如：我想問照片中的食物熱量可能是多少），然後再上傳一張圖片即可`);
                 console.log(`New member joined the group: ${userId}`);
             } catch (error) {
                 console.error('Error handling member join event:', error);
