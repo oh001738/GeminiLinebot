@@ -53,13 +53,13 @@ app.post('/webhook', async (req, res) => {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
                     }
-                } else if (text.startsWith("我想問")) {
+                } else if (text.startsWith("我想")) {
                     const userId = event.source.userId; // 取得使用者的 ID
-                    const userRequestText = text.replace(/^我想問\s*/, '').trim(); // 移除開頭的 "我想問" 字串
+                    const userRequestText = text.replace(/^我想\s*/, '').trim(); // 移除開頭的 "我想" 字串
 
                     // 判斷使用者輸入是否為空
                     if (userRequestText === '') {
-                        console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想問".`);
+                        console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想".`);
                         return; // 不進行後續處理
                     }
 
