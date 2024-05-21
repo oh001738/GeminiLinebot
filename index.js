@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
                     console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
 
                     // 啟動超時計時器
-                    const timeoutDuration = 60 * 1000; // 指定時間，以毫秒為單位
+                    const timeoutDuration = 2 * 60 * 1000; // 指定時間，以毫秒為單位
                     const timeoutId = setTimeout(async () => {
                         // 如果超時，清除使用者請求
                         userRequests.delete(userId);
