@@ -53,7 +53,7 @@ app.post('/webhook', async (req, res) => {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
                     }
-                } else if (text.startsWith("我想知道") || text.startsWith("我要問") || text.startsWith("我想問")) {
+                } else if ((text.startsWith("我想知道") || text.startsWith("我要問") || text.startsWith("我想問")) && processImageMsg) {
                     const userId = event.source.userId; // 取得使用者的 ID
                     const userRequestText = text.replace(/^我想知道|^我要問|^我想問\s*/, '').trim(); // 移除開頭的字串
 
@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
                     console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
 
                     // 啟動超時計時器
-                    const timeoutDuration = 1 * 60 * 1000; // 指定時間，以毫秒為單位
+                    const timeoutDuration = 2 * 60 * 1000; // 指定時間，以毫秒為單位
                     const timeoutId = setTimeout(async () => {
                         // 如果超時，清除使用者請求
                         userRequests.delete(userId);
@@ -153,7 +153,7 @@ app.post('/webhook', async (req, res) => {
 // 使用 Google Generative AI 處理文字訊息
 async function processText(userInput) {
     try {
-        const MODEL_NAME = "gemini-1.0-pro";
+        const MODEL_NAME = process.env.GGAI_API_MODEL;
         const API_KEY = process.env.GGAI_API_KEY;
 
         const genAI = new GoogleGenerativeAI(API_KEY);
@@ -162,10 +162,10 @@ async function processText(userInput) {
         });
 
         const generationConfig = {
-            temperature: 0.5,
-            topK: 1,
-            topP: 1,
-            maxOutputTokens: 2048,
+            temperature: process.env.GGAI_temperature,
+            topK: process.env.GGAI_topK,
+            topP: process.env.GGAI_topP,
+            maxOutputTokens: process.env.GGAI_maxOutputTokens,
             stopSequences: [
                 "bbu",
             ],
@@ -214,7 +214,7 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         // 返回處理後的文字訊息
         const genAI = new GoogleGenerativeAI(process.env.GGAI_API_KEY);
         const model = genAI.getGenerativeModel({
-            model: "gemini-pro-vision"
+            model: process.env.GGAI_VAPI_MODEL
         });
         const prompt = userRequest;
         const mimeType = "image/png";
@@ -230,7 +230,17 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         // 將使用者的圖片數據存儲在全域的 Map 中
         userImages.set(userId, imageParts);
 
-        // 設定安全性設定
+        const generationConfig = {
+            temperature: process.env.GGAI_temperature,
+            topK: process.env.GGAI_topK,
+            topP: process.env.GGAI_topP,
+            maxOutputTokens: process.env.GGAI_maxOutputTokens,
+            stopSequences: [
+                "bbu",
+            ],
+        };
+
+	// 設定安全性設定
         const safetySettings = [{
                 category: HarmCategory.HARM_CATEGORY_HARASSMENT,
                 threshold: HarmBlockThreshold.BLOCK_NONE,
@@ -250,7 +260,7 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         ];
 
         // 使用 Google Generative AI 處理圖片
-        const result = await model.generateContent([prompt, ...imageParts], safetySettings);
+        const result = await model.generateContent([prompt, ...imageParts], safetySettings, generationConfig);
         const text = result.response.text();
         await replyMessage(replyToken, text); // 將回覆訊息的函式呼叫移到 try 塊中
         return text;
