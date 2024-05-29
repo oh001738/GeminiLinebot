@@ -16,7 +16,7 @@
 
 2. 克隆此專案到本地端：
     ```sh
-    git clone https://github.com/yourusername/your-repo-name.git
+    git clone https://github.com/oh001738/GeminiLinebot.git
     cd your-repo-name
     ```
 
