@@ -39,16 +39,16 @@ app.post('/webhook', async (req, res) => {
                     const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-                        console.log(`Event.UserInput: [${replyToken}] No input after callSign.`);
+                        console.log(`Event.UserInput: [${userId}][${replyToken}] No input after callSign.`);
                         return; // 不進行後續處理
                     }
 
-                    console.log(`Event.Start --- UserInput: [${replyToken}] ${userInput}`);
+                    console.log(`Event.Start --- UserInput: [${userId}][${replyToken}] ${userInput}`);
                     try {
                         await startLoadingAnimation(userId, 10); //Loading Animation
                         const processedText = await processText(userInput);
                         await replyMessage(replyToken, processedText);
-                        console.log(`Event.End --- Response: [${replyToken}] ${processedText}`);
+                        console.log(`Event.End --- Response: [${userId}][${replyToken}] ${processedText}`);
                     } catch (error) {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
@@ -71,7 +71,7 @@ app.post('/webhook', async (req, res) => {
                     const timeoutId = setTimeout(async () => {
                         // 如果超時，清除使用者請求
                         userRequests.delete(userId);
-                        console.log(`Event.Timeout --- UserRequest: [${replyToken}] 時間已超過 ${timeoutDuration / 1000} 秒`);
+                        console.log(`Event.Timeout --- UserRequest: [${userId}][${replyToken}] 時間已超過 ${timeoutDuration / 1000} 秒`);
                     }, timeoutDuration);
 
                     // 將 timeoutId 存儲在 Map 中，以便後續取消計時器使用
@@ -89,7 +89,7 @@ app.post('/webhook', async (req, res) => {
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-                    console.log(`Event.UserInput: [${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+                    console.log(`Event.UserInput: [${userId}][${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                     return;
                 }
 
@@ -163,12 +163,8 @@ async function processText(userInput) {
 
         const generationConfig = {
             temperature: process.env.GGAI_temperature,
-            topK: process.env.GGAI_topK,
             topP: process.env.GGAI_topP,
             maxOutputTokens: process.env.GGAI_maxOutputTokens,
-            stopSequences: [
-                "bbu",
-            ],
         };
 
         const safetySettings = [{
@@ -231,13 +227,9 @@ async function processImageAndRequest(userRequest, userId, imageBinary, replyTok
         userImages.set(userId, imageParts);
 
         const generationConfig = {
-            temperature: process.env.GGAI_temperature,
-            topK: process.env.GGAI_topK,
-            topP: process.env.GGAI_topP,
+            temperature: process.env.GGAI_Vtemperature,
+            topP: process.env.GGAI_VtopP,
             maxOutputTokens: process.env.GGAI_maxOutputTokens,
-            stopSequences: [
-                "bbu",
-            ],
         };
 
 	// 設定安全性設定
@@ -354,3 +346,4 @@ const server = http.createServer(app);
 server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+root@skysurf:~/Linebot/GeminiLinebot# 
