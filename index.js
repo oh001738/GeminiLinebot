@@ -10,8 +10,10 @@ const {
 
 const app = express();
 const port = process.env.PORT || 3000;
-let processImageMsg = (process.env.processImageMsg === 'true');
-let callSign = process.env.callSign;
+const processImageMsg = (process.env.processImageMsg === 'true');
+const callSign = process.env.callSign;
+const callVision = process.env.callVision.split(',');
+
 app.use(express.json());
 
 // 在應用程式的全域範圍內定義一個用於存儲使用者請求的 Map 或 Object
@@ -30,48 +32,50 @@ app.post('/webhook', async (req, res) => {
             if (message.type === 'text') {
                 // 處理文字訊息
                 const text = message.text;
+		const userId = event.source.userId;
+		const groupId = event.source.groupId;
                 const replyToken = event.replyToken;
-
-                if (text.startsWith(callSign)) {
+		console.log(`Global.UserInput: [${groupId}][${userId}]---${text}`);
+   		  if (text.startsWith(callSign)) {
                     // 文字訊息以「callSign環境變數」開頭，處理文字訊息...
                     const escapedCallSign = callSign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                     const userInput = text.replace(new RegExp('^' + escapedCallSign + '\\s*'), '').trim();
                     const userId = event.source.userId; // 取得使用者的 ID
                     // 判斷使用者輸入是否為空
                     if (userInput === '') {
-                        console.log(`Event.UserInput: [${userId}][${replyToken}] No input after callSign.`);
+                        console.log(`Event.UserInput: [${userId}] No input after callSign.`);
                         return; // 不進行後續處理
                     }
 
-                    console.log(`Event.Start --- UserInput: [${userId}][${replyToken}] ${userInput}`);
+                    console.log(`Event.Start --- UserInput: [${userId}] ${userInput}`);
                     try {
                         await startLoadingAnimation(userId, 10); //Loading Animation
                         const processedText = await processText(userInput);
                         await replyMessage(replyToken, processedText);
-                        console.log(`Event.End --- Response: [${userId}][${replyToken}] ${processedText}`);
+                        console.log(`Event.End --- Response: [${userId}] ${processedText}`);
                     } catch (error) {
                         await replyMessage(replyToken, '對不起，處理消息時出錯。錯誤訊息：' + error.toString());
                         console.error('Error replying message:', error);
                     }
-                } else if ((text.startsWith("我想知道") || text.startsWith("我要問") || text.startsWith("我想問")) && processImageMsg) {
+                } else if (callVision.some(keyword => text.startsWith(keyword)) && processImageMsg) {
                     const userId = event.source.userId; // 取得使用者的 ID
-                    const userRequestText = text.replace(/^我想知道|^我要問|^我想問\s*/, '').trim(); // 移除開頭的字串
+                    const userRequestText = text.replace(new RegExp(`^(${callVision.join('|')})\\s*`), '').trim(); // 移除開頭的字串
 
                     // 判斷使用者輸入是否為空
                     if (userRequestText === '') {
-                        console.log(`Event.UserRequest: [${userId}][${replyToken}] No input after "我想".`);
+                        console.log(`Event.UserRequest: [${userId}] No input after vision keyword.`);
                         return; // 不進行後續處理
                     }
 
                     userRequests.set(userId, userRequestText); // 將使用者的請求存儲在 Map 中
-                    console.log(`Event.Start --- UserRequest: [${userId}][${replyToken}] ${userRequestText}`);
+                    console.log(`Event.Start --- UserRequest: [${userId}] ${userRequestText}`);
 
                     // 啟動超時計時器
                     const timeoutDuration = 2 * 60 * 1000; // 指定時間，以毫秒為單位
                     const timeoutId = setTimeout(async () => {
                         // 如果超時，清除使用者請求
                         userRequests.delete(userId);
-                        console.log(`Event.Timeout --- UserRequest: [${userId}][${replyToken}] 時間已超過 ${timeoutDuration / 1000} 秒`);
+                        console.log(`Event.Timeout --- UserRequest: [${userId}] 時間已超過 ${timeoutDuration / 1000} 秒`);
                     }, timeoutDuration);
 
                     // 將 timeoutId 存儲在 Map 中，以便後續取消計時器使用
@@ -89,7 +93,7 @@ app.post('/webhook', async (req, res) => {
                 const imageBinary = await getImageBinary(imageMessageId); // 取得圖片二進制資料
                 if (!userRequest) {
                     // 如果尚未收到使用者的文字請求，則回覆提醒訊息
-                    console.log(`Event.UserInput: [${userId}][${replyToken}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
+                    console.log(`Event.UserInput: [${userId}] 請先使用 "我想問" 指令來觸發圖片訊息的處理。`);
                     return;
                 }
 
@@ -100,7 +104,7 @@ app.post('/webhook', async (req, res) => {
                         // 如果已經收到了使用者的請求和圖片二進制資料，則處理圖片和請求
                         const processedText = await processImageAndRequest(userRequest, userId, imageBinary, replyToken);
                         //await replyMessage(replyToken, processedText);
-                        console.log(`Event.End --- Response: [${userId}][${replyToken}] ${processedText}`);
+                        console.log(`Event.End --- Response: [${userId}] ${processedText}`);
                     } else {
                         await replyMessage(replyToken, '對不起，處理圖片時出錯。');
                         console.error('Event.Error processing image and user request: No user request or image binary.');
@@ -346,4 +350,3 @@ const server = http.createServer(app);
 server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
-root@skysurf:~/Linebot/GeminiLinebot# 
